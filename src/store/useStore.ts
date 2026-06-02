@@ -13,12 +13,14 @@ interface AppState {
 
   // User
   user: User
+  setUser: (user: User) => void
   updateUser: (updates: Partial<User>) => void
   addPoints: (points: number) => void
   deductPoints: (points: number) => void
 
   // Orders
   orders: Order[]
+  setOrders: (orders: Order[]) => void
   addOrder: (order: Order) => void
 
   // UI State
@@ -28,12 +30,12 @@ interface AppState {
 
 const defaultUser: User = {
   name: '美食爱好者',
-  phone: '138****8888',
+  phone: '',
   avatar: '😊',
-  points: 520,
-  membershipLevel: '银卡会员',
-  totalSpent: 1680,
-  joinDate: '2025-06-15',
+  points: 0,
+  membershipLevel: '普通会员',
+  totalSpent: 0,
+  joinDate: '',
 }
 
 export const useStore = create<AppState>()(
@@ -80,6 +82,8 @@ export const useStore = create<AppState>()(
 
       cartCount: () => get().cart.reduce((sum, item) => sum + item.quantity, 0),
 
+      setUser: (user) => set({ user }),
+
       updateUser: (updates) => {
         set({ user: { ...get().user, ...updates } })
       },
@@ -87,7 +91,7 @@ export const useStore = create<AppState>()(
       addPoints: (points) => {
         const user = get().user
         const newPoints = user.points + points
-        const totalSpent = user.totalSpent + points // simplified
+        const totalSpent = user.totalSpent + points
         let membershipLevel = user.membershipLevel
         if (totalSpent >= 10000) membershipLevel = '钻石会员'
         else if (totalSpent >= 5000) membershipLevel = '金卡会员'
@@ -103,6 +107,8 @@ export const useStore = create<AppState>()(
         set({ user: { ...user, points: Math.max(0, user.points - points) } })
       },
 
+      setOrders: (orders) => set({ orders }),
+
       addOrder: (order) => {
         set({ orders: [order, ...get().orders] })
       },
@@ -113,8 +119,6 @@ export const useStore = create<AppState>()(
       name: 'restaurant-storage',
       partialize: (state) => ({
         cart: state.cart,
-        user: state.user,
-        orders: state.orders,
       }),
     }
   )

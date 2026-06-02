@@ -2,3 +2,7 @@ node_modules/
 dist/
 .DS_Store
 *.local
+.vite/
+server/node_modules/
+server/data.json
+server/package-lock.json

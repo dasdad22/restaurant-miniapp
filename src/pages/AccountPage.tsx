@@ -2,9 +2,10 @@ import { useStore } from '../store/useStore'
 
 interface Props {
   onNavigate: (page: { name: 'orderDetail'; orderId: string }) => void
+  onLogout: () => void
 }
 
-export default function AccountPage({ onNavigate }: Props) {
+export default function AccountPage({ onNavigate, onLogout }: Props) {
   const user = useStore(s => s.user)
   const orders = useStore(s => s.orders)
 
@@ -147,6 +148,16 @@ export default function AccountPage({ onNavigate }: Props) {
           </div>
         )}
       </section>
+
+      {/* Logout */}
+      <div className="px-5 pb-8">
+        <button
+          onClick={onLogout}
+          className="w-full bg-white text-gray-400 py-3 rounded-xl text-sm font-medium border border-gray-200 active:bg-gray-50 transition-colors"
+        >
+          退出登录
+        </button>
+      </div>
     </div>
   )
 }

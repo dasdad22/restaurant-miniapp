@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { useStore } from '../store/useStore'
 import { getDishById } from '../data/menu'
 import { Order } from '../types'
+import { api } from '../api'
 
 interface Props {
   onBack: () => void
@@ -10,18 +11,21 @@ interface Props {
 export default function CheckoutPage({ onBack }: Props) {
   const cart = useStore(s => s.cart)
   const user = useStore(s => s.user)
+  const setUser = useStore(s => s.setUser)
   const addToCart = useStore(s => s.addToCart)
   const updateQuantity = useStore(s => s.updateQuantity)
   const clearCart = useStore(s => s.clearCart)
   const addOrder = useStore(s => s.addOrder)
-  const addPoints = useStore(s => s.addPoints)
-  const deductPoints = useStore(s => s.deductPoints)
+  const setOrders = useStore(s => s.setOrders)
 
   const [tableNumber, setTableNumber] = useState('')
   const [remark, setRemark] = useState('')
   const [usePoints, setUsePoints] = useState(false)
+  const [showPayment, setShowPayment] = useState(false)
   const [showSuccess, setShowSuccess] = useState(false)
   const [lastOrder, setLastOrder] = useState<Order | null>(null)
+  const [submitting, setSubmitting] = useState(false)
+  const [paymentDone, setPaymentDone] = useState(false)
 
   const cartItems = cart
     .map(item => ({ ...item, dish: getDishById(item.dishId) }))
@@ -33,41 +37,117 @@ export default function CheckoutPage({ onBack }: Props) {
   const finalTotal = Math.max(0, total - discount - pointsDiscount)
   const pointsEarned = Math.floor(finalTotal * 0.1)
 
-  const handleSubmit = () => {
-    const order: Order = {
-      id: `ORD${Date.now().toString(36).toUpperCase()}`,
-      items: [...cart],
-      total,
-      discount: discount + pointsDiscount,
-      finalTotal,
-      pointsEarned,
-      pointsUsed: pointsDiscount,
-      status: 'confirmed',
-      createdAt: new Date().toISOString(),
-      tableNumber: tableNumber || undefined,
-      remark: remark || undefined,
-    }
+  const handleConfirmOrder = async () => {
+    setSubmitting(true)
+    try {
+      const res = await api.createOrder({
+        items: [...cart],
+        total,
+        discount: discount + pointsDiscount,
+        finalTotal,
+        pointsEarned,
+        pointsUsed: pointsDiscount,
+        tableNumber: tableNumber || undefined,
+        remark: remark || undefined,
+      })
 
-    addOrder(order)
-    if (pointsDiscount > 0) deductPoints(pointsDiscount)
-    addPoints(pointsEarned)
-    setLastOrder(order)
+      // 更新本地状态
+      setUser({ ...user, points: res.user.points, membershipLevel: res.user.membershipLevel as any, totalSpent: res.user.totalSpent })
+      setLastOrder(res.order)
+      addOrder(res.order)
+
+      // 同步订单列表
+      api.getOrders().then(({ orders }) => setOrders(orders)).catch(() => {})
+
+      // 进入付款步骤
+      setShowPayment(true)
+    } catch (err: any) {
+      alert(err.message || '下单失败，请重试')
+    } finally {
+      setSubmitting(false)
+    }
+  }
+
+  const handlePaymentDone = () => {
+    setPaymentDone(true)
     setShowSuccess(true)
     clearCart()
   }
 
-  // Reset state helper
   const handleDone = () => {
     setShowSuccess(false)
+    setShowPayment(false)
+    setPaymentDone(false)
     setLastOrder(null)
     onBack()
   }
 
+  // ===== 付款页面 =====
+  if (showPayment && lastOrder) {
+    return (
+      <div className="h-full flex flex-col bg-white">
+        <header className="bg-white px-5 pt-10 pb-3 flex-shrink-0 border-b border-gray-100 flex items-center gap-3">
+          <button onClick={handleDone} className="text-gray-500 text-lg">←</button>
+          <h1 className="text-lg font-bold text-gray-800">💳 扫码付款</h1>
+        </header>
+
+        <div className="flex-1 flex flex-col items-center justify-center px-6">
+          {/* Amount */}
+          <p className="text-sm text-gray-500 mb-2">请扫描下方二维码支付</p>
+          <p className="text-3xl font-bold text-primary mb-6">¥{lastOrder.finalTotal}</p>
+
+          {/* Payment QR Code Placeholder */}
+          <div className="bg-green-50 border-2 border-green-200 rounded-2xl p-6 mb-4 w-full max-w-xs text-center">
+            <div className="text-6xl mb-3">💚</div>
+            <div className="bg-white rounded-xl p-4 mb-3">
+              <div className="text-5xl mb-2">📱</div>
+              <p className="text-sm font-bold text-gray-800">微信收款码</p>
+              <p className="text-xs text-gray-500 mt-1">
+                请将你的微信收款码图片<br/>替换此处占位图
+              </p>
+            </div>
+            <p className="text-xs text-green-700 font-medium">
+              🟢 收款方：餐厅老板微信
+            </p>
+          </div>
+
+          <p className="text-xs text-gray-400 mb-6">订单号: {lastOrder.id}</p>
+
+          {!paymentDone ? (
+            <button
+              onClick={handlePaymentDone}
+              className="w-full bg-green-500 text-white py-3 rounded-xl font-semibold text-base active:bg-green-600 transition-colors shadow-lg shadow-green-500/30"
+            >
+              ✅ 我已付款
+            </button>
+          ) : (
+            <div className="text-center">
+              <div className="text-5xl mb-2">✅</div>
+              <p className="text-green-600 font-semibold">付款确认成功</p>
+            </div>
+          )}
+        </div>
+
+        {paymentDone && (
+          <div className="flex-shrink-0 p-4 safe-bottom">
+            <button
+              onClick={handleDone}
+              className="w-full bg-primary text-white py-3 rounded-xl font-semibold active:bg-primary-dark transition-colors"
+            >
+              完成
+            </button>
+          </div>
+        )}
+      </div>
+    )
+  }
+
+  // ===== 成功页 =====
   if (showSuccess && lastOrder) {
     return (
       <div className="h-full flex flex-col bg-white">
         <div className="flex-1 flex flex-col items-center justify-center px-8">
-          <div className="text-6xl mb-4">✅</div>
+          <div className="text-6xl mb-4">🎉</div>
           <h2 className="text-xl font-bold text-gray-800 mb-2">下单成功!</h2>
           <p className="text-sm text-gray-500 mb-6">订单号: {lastOrder.id}</p>
 
@@ -108,9 +188,9 @@ export default function CheckoutPage({ onBack }: Props) {
     )
   }
 
+  // ===== 确认订单页 =====
   return (
     <div className="h-full flex flex-col bg-gray-50">
-      {/* Header */}
       <header className="bg-white px-5 pt-10 pb-3 flex-shrink-0 border-b border-gray-100 flex items-center gap-3">
         <button onClick={onBack} className="text-gray-500 text-lg">←</button>
         <h1 className="text-lg font-bold text-gray-800">💳 确认订单</h1>
@@ -185,7 +265,6 @@ export default function CheckoutPage({ onBack }: Props) {
             </div>
           )}
 
-          {/* Points */}
           <div className="flex items-center justify-between border-t border-gray-50 pt-2">
             <div className="flex items-center gap-2">
               <span className="text-sm text-gray-500">🎫 积分抵扣</span>
@@ -224,10 +303,11 @@ export default function CheckoutPage({ onBack }: Props) {
       {/* Submit */}
       <div className="flex-shrink-0 p-4 safe-bottom">
         <button
-          onClick={handleSubmit}
-          className="w-full bg-primary text-white py-3 rounded-xl font-semibold text-base active:bg-primary-dark transition-colors shadow-lg shadow-primary/30"
+          onClick={handleConfirmOrder}
+          disabled={submitting}
+          className="w-full bg-primary text-white py-3 rounded-xl font-semibold text-base active:bg-primary-dark transition-colors shadow-lg shadow-primary/30 disabled:opacity-50"
         >
-          🔔 确认下单 · ¥{finalTotal}
+          {submitting ? '提交中...' : `🔔 确认下单 · ¥${finalTotal}`}
         </button>
       </div>
     </div>
