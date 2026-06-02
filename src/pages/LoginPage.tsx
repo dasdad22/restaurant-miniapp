@@ -3,9 +3,10 @@ import { api } from '../api'
 
 interface Props {
   onLoginSuccess: () => void
+  onGuestLogin: () => void
 }
 
-export default function LoginPage({ onLoginSuccess }: Props) {
+export default function LoginPage({ onLoginSuccess, onGuestLogin }: Props) {
   const [phone, setPhone] = useState('')
   const [code, setCode] = useState('')
   const [codeSent, setCodeSent] = useState(false)
@@ -39,10 +40,8 @@ export default function LoginPage({ onLoginSuccess }: Props) {
       setCodeSent(true)
       startCountdown()
 
-      // 开发阶段自动填入验证码
       if (res.code) {
         setCode(res.code)
-        console.log('开发验证码:', res.code)
       }
     } catch (err: any) {
       setError(err.message || '发送失败，请重试')
@@ -62,6 +61,7 @@ export default function LoginPage({ onLoginSuccess }: Props) {
       const res = await api.login(phone, code)
       localStorage.setItem('token', res.token)
       localStorage.setItem('user', JSON.stringify(res.user))
+      localStorage.removeItem('isGuest')
       onLoginSuccess()
     } catch (err: any) {
       setError(err.message || '登录失败')
@@ -77,13 +77,13 @@ export default function LoginPage({ onLoginSuccess }: Props) {
         <div className="text-center">
           <div className="text-6xl mb-3">🏮</div>
           <h1 className="text-2xl font-bold text-white">美味餐厅</h1>
-          <p className="text-white/70 text-sm mt-1">手机号登录，享受会员服务</p>
+          <p className="text-white/70 text-sm mt-1">登录享受会员积分与专属优惠</p>
         </div>
       </div>
 
       {/* Form */}
-      <div className="flex-1 px-6 pt-8">
-        <div className="space-y-4">
+      <div className="flex-1 px-6 pt-8 flex flex-col">
+        <div className="space-y-4 flex-1">
           {/* Phone Input */}
           <div>
             <label className="text-sm text-gray-600 mb-1 block">📱 手机号</label>
@@ -137,15 +137,30 @@ export default function LoginPage({ onLoginSuccess }: Props) {
           <button
             onClick={handleLogin}
             disabled={loading || !phone || !code}
-            className="w-full bg-primary text-white py-3.5 rounded-xl font-semibold text-base active:bg-primary-dark transition-colors disabled:opacity-50 disabled:cursor-not-allowed shadow-lg shadow-primary/30 mt-4"
+            className="w-full bg-primary text-white py-3.5 rounded-xl font-semibold text-base active:bg-primary-dark transition-colors disabled:opacity-50 disabled:cursor-not-allowed shadow-lg shadow-primary/30"
           >
             {loading ? '登录中...' : '登 录'}
           </button>
 
-          <p className="text-xs text-gray-400 text-center mt-4">
-            未注册手机号将自动注册
+          <p className="text-xs text-gray-400 text-center">
+            未注册手机号将自动注册 · 新用户送50积分
           </p>
         </div>
+
+        {/* Divider */}
+        <div className="flex items-center gap-3 my-6">
+          <div className="flex-1 h-px bg-gray-200" />
+          <span className="text-xs text-gray-400">其他方式</span>
+          <div className="flex-1 h-px bg-gray-200" />
+        </div>
+
+        {/* Guest Login */}
+        <button
+          onClick={onGuestLogin}
+          className="w-full bg-gray-100 text-gray-600 py-3.5 rounded-xl font-medium text-base active:bg-gray-200 transition-colors mb-8"
+        >
+          👤 游客登录 · 直接进入
+        </button>
       </div>
     </div>
   )
