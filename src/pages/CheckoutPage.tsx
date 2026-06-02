@@ -24,8 +24,12 @@ export default function CheckoutPage({ onBack }: Props) {
   const [showPayment, setShowPayment] = useState(false)
   const [showSuccess, setShowSuccess] = useState(false)
   const [lastOrder, setLastOrder] = useState<Order | null>(null)
+  const [selectedCoupon, setSelectedCoupon] = useState<string | null>(null)
   const [submitting, setSubmitting] = useState(false)
   const [paymentDone, setPaymentDone] = useState(false)
+
+  const useCoupon = useStore(s => s.useCoupon)
+  const availableCoupons = user.coupons.filter(c => !c.isUsed && total >= c.threshold)
 
   const cartItems = cart
     .map(item => ({ ...item, dish: getDishById(item.dishId) }))
@@ -34,7 +38,19 @@ export default function CheckoutPage({ onBack }: Props) {
   const total = cartItems.reduce((sum, item) => sum + (item.dish?.price || 0) * item.quantity, 0)
   const discount = total >= 200 ? Math.floor(total * 0.1) : total >= 100 ? 5 : 0
   const pointsDiscount = usePoints ? Math.min(user.points, Math.floor(total * 0.2)) : 0
-  const finalTotal = Math.max(0, total - discount - pointsDiscount)
+
+  // 优惠券折扣
+  let couponDiscount = 0
+  if (selectedCoupon) {
+    const coupon = availableCoupons.find(c => c.id === selectedCoupon)
+    if (coupon) {
+      if (coupon.type === 'full_reduction') couponDiscount = coupon.reduce
+      else if (coupon.type === 'discount') couponDiscount = Math.floor(total * (100 - coupon.reduce) / 100)
+    }
+  }
+  const activeCoupon = selectedCoupon ? availableCoupons.find(c => c.id === selectedCoupon) : null
+
+  const finalTotal = Math.max(0, total - discount - pointsDiscount - couponDiscount)
   const pointsEarned = Math.floor(finalTotal * 0.1)
 
   const handleConfirmOrder = async () => {
@@ -43,7 +59,7 @@ export default function CheckoutPage({ onBack }: Props) {
       const res = await api.createOrder({
         items: [...cart],
         total,
-        discount: discount + pointsDiscount,
+        discount: discount + pointsDiscount + couponDiscount,
         finalTotal,
         pointsEarned,
         pointsUsed: pointsDiscount,
@@ -55,6 +71,9 @@ export default function CheckoutPage({ onBack }: Props) {
       setUser({ ...user, points: res.user.points, membershipLevel: res.user.membershipLevel as any, totalSpent: res.user.totalSpent })
       setLastOrder(res.order)
       addOrder(res.order)
+
+      // 使用优惠券
+      if (selectedCoupon) useCoupon(selectedCoupon)
 
       // 同步订单列表
       api.getOrders().then(({ orders }) => setOrders(orders)).catch(() => {})
@@ -289,6 +308,31 @@ export default function CheckoutPage({ onBack }: Props) {
               <span className="text-orange-500">-¥{pointsDiscount}</span>
             </div>
           )}
+
+          {/* Coupon Selection */}
+          <div className="border-t border-gray-50 pt-2">
+            <div className="flex items-center justify-between">
+              <span className="text-sm text-gray-500">🎟️ 优惠券</span>
+              <select
+                value={selectedCoupon || ''}
+                onChange={e => setSelectedCoupon(e.target.value || null)}
+                className="text-sm text-right text-gray-700 bg-transparent outline-none max-w-[60%]"
+              >
+                <option value="">不使用优惠券</option>
+                {availableCoupons.map(c => (
+                  <option key={c.id} value={c.id}>
+                    {c.name} ({c.type === 'full_reduction' ? `减¥${c.reduce}` : `${c.reduce}折`})
+                  </option>
+                ))}
+              </select>
+            </div>
+            {couponDiscount > 0 && (
+              <div className="flex justify-between text-sm mt-1">
+                <span className="text-gray-400">{activeCoupon?.name}</span>
+                <span className="text-green-500">-¥{couponDiscount}</span>
+              </div>
+            )}
+          </div>
 
           <div className="flex justify-between border-t border-gray-100 pt-2">
             <span className="font-semibold text-gray-700">实付金额</span>

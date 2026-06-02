@@ -1,13 +1,15 @@
+import { useState } from 'react'
 import { dishes } from '../data/menu'
 import { useStore } from '../store/useStore'
 import { PageTab } from '../types'
 
 interface Props {
-  onNavigate: (page: { name: 'checkout' } | { name: 'orderDetail'; orderId: string }) => void
+  onNavigate: (page: { name: 'checkout' } | { name: 'orderDetail'; orderId: string } | { name: 'admin' }) => void
   onSwitchTab: (tab: PageTab) => void
 }
 
-export default function HomePage({ onSwitchTab }: Props) {
+export default function HomePage({ onNavigate, onSwitchTab }: Props) {
+  const [pressTimer, setPressTimer] = useState<any>(null)
   const user = useStore(s => s.user)
   const cartCount = useStore(s => s.cartCount())
   const orders = useStore(s => s.orders)
@@ -31,7 +33,12 @@ export default function HomePage({ onSwitchTab }: Props) {
       <header className="bg-gradient-to-br from-primary to-red-500 text-white px-5 pt-10 pb-8 rounded-b-3xl flex-shrink-0">
         <div className="flex items-center justify-between mb-4">
           <div>
-            <h1 className="text-lg font-bold">🏮 美味餐厅</h1>
+            <h1
+              className="text-lg font-bold select-none"
+              onTouchStart={() => setPressTimer(setTimeout(() => { onNavigate({ name: 'admin' }); setPressTimer(null) }, 2000))}
+              onTouchEnd={() => { if (pressTimer) { clearTimeout(pressTimer); setPressTimer(null) } }}
+              onTouchMove={() => { if (pressTimer) { clearTimeout(pressTimer); setPressTimer(null) } }}
+            >🏮 美味餐厅</h1>
             <p className="text-white/70 text-xs mt-1">中式家常菜 · 用心做好每一餐</p>
           </div>
           <div className="flex items-center gap-2">

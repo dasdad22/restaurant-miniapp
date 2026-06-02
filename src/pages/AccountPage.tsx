@@ -1,4 +1,5 @@
 import { useStore } from '../store/useStore'
+import { getDishById } from '../data/menu'
 
 interface Props {
   onNavigate: (page: { name: 'orderDetail'; orderId: string }) => void
@@ -8,6 +9,7 @@ interface Props {
 export default function AccountPage({ onNavigate, onLogout }: Props) {
   const user = useStore(s => s.user)
   const orders = useStore(s => s.orders)
+  const favDishes = user.favoriteDishes.map(id => getDishById(id)).filter(Boolean)
 
   const getLevelColor = (level: string) => {
     const map: Record<string, string> = {
@@ -107,6 +109,22 @@ export default function AccountPage({ onNavigate, onLogout }: Props) {
           <MenuItem icon="⭐" label="收藏" />
         </div>
       </div>
+
+      {/* Favorites */}
+      {favDishes.length > 0 && (
+        <section className="px-5 mt-4">
+          <h3 className="text-sm font-semibold text-gray-800 mb-3">❤️ 我的收藏</h3>
+          <div className="flex gap-2 overflow-x-auto pb-2">
+            {favDishes.map(dish => dish && (
+              <div key={dish.id} className="bg-white rounded-xl p-2 flex-shrink-0 w-24 text-center shadow-sm">
+                <div className="text-3xl mb-1">{dish.image}</div>
+                <p className="text-xs text-gray-700 truncate">{dish.name}</p>
+                <p className="text-xs text-primary font-medium">¥{dish.price}</p>
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
 
       {/* Recent Orders */}
       <section className="px-5 mt-4 pb-6">

@@ -8,9 +8,10 @@ import AccountPage from './pages/AccountPage'
 import CheckoutPage from './pages/CheckoutPage'
 import OrderDetailPage from './pages/OrderDetailPage'
 import LoginPage from './pages/LoginPage'
+import AdminPage from './pages/AdminPage'
 import { api } from './api'
 
-type SubPage = { name: 'checkout' } | { name: 'orderDetail'; orderId: string } | null
+type SubPage = { name: 'checkout' } | { name: 'orderDetail'; orderId: string } | { name: 'admin' } | null
 
 const guestUser = {
   id: -1,
@@ -21,6 +22,8 @@ const guestUser = {
   membershipLevel: '普通会员' as const,
   totalSpent: 0,
   joinDate: '',
+  favoriteDishes: [] as string[],
+  coupons: [] as any[],
 }
 
 export default function App() {
@@ -159,10 +162,13 @@ export default function App() {
     if (subPage?.name === 'orderDetail') {
       return <OrderDetailPage orderId={subPage.orderId} onBack={goBack} />
     }
+    if (subPage?.name === 'admin') {
+      return <AdminPage onBack={goBack} />
+    }
 
     switch (activeTab) {
       case 'home':
-        return <HomePage onNavigate={navigateTo} onSwitchTab={setActiveTab} isGuest={isGuest} onLogin={handleSwitchToRealLogin} />
+        return <HomePage onNavigate={navigateTo} onSwitchTab={setActiveTab} />
       case 'menu':
         return <MenuPage onNavigate={navigateTo} />
       case 'cart':
@@ -172,7 +178,7 @@ export default function App() {
           ? <GuestAccountPage onLogin={handleSwitchToRealLogin} />
           : <AccountPage onNavigate={navigateTo} onLogout={handleLogout} />
       default:
-        return <HomePage onNavigate={navigateTo} onSwitchTab={setActiveTab} isGuest={isGuest} onLogin={handleSwitchToRealLogin} />
+        return <HomePage onNavigate={navigateTo} onSwitchTab={setActiveTab} />
     }
   }
 
